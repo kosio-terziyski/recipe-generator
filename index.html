@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe Generator — Mexgroceria</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0E0C;--bg2:#1A1814;--bg3:#242220;--border:#2E2C28;--border2:#3D3A34;--text:#E8E4DC;--text2:#9A9488;--text3:#5A5650;--accent:#C84B2F;--accent2:#E8632A;--gold:#D4A853;--green:#4A8C6A;--radius:6px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;font-size:14px;line-height:1.6}
+header{border-bottom:0.5px solid var(--border);padding:20px 32px;display:flex;align-items:center;gap:16px}
+.logo-mark{width:36px;height:36px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;color:white;flex-shrink:0}
+.logo-text{font-family:'Playfair Display',serif;font-size:18px;letter-spacing:.02em}
+.logo-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-top:1px}
+.version-tag{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);border:0.5px solid var(--border2);padding:3px 8px;border-radius:3px;letter-spacing:.08em}
+.main{display:grid;grid-template-columns:380px 1fr;min-height:calc(100vh - 77px)}
+.sidebar{border-right:0.5px solid var(--border);padding:28px 24px;display:flex;flex-direction:column;gap:24px;overflow-y:auto;max-height:calc(100vh - 77px)}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.pill-group{display:flex;flex-wrap:wrap;gap:6px}
+.pill{padding:4px 12px;border-radius:20px;font-size:12px;border:0.5px solid var(--border2);cursor:pointer;color:var(--text2);background:transparent;transition:all .15s;font-family:'IBM Plex Sans',sans-serif}
+.pill:hover{border-color:var(--accent);color:var(--text)}
+.pill.active{background:var(--accent);border-color:var(--accent);color:white}
+.pill.gold{border-color:var(--gold)}
+.pill.gold.active{background:var(--gold);border-color:var(--gold);color:#0F0E0C}
+.tag-input-wrap{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:8px;display:flex;flex-wrap:wrap;gap:6px;cursor:text;min-height:44px;transition:border-color .15s}
+.tag-input-wrap:focus-within{border-color:var(--border2)}
+.tag{background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 8px 2px 10px;font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tag .rm{cursor:pointer;color:var(--text3);font-size:14px;line-height:1;transition:color .1s}
+.tag .rm:hover{color:var(--accent)}
+.tag-input{border:none;background:transparent;outline:none;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;min-width:80px;flex:1;padding:2px 4px}
+textarea{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;padding:10px 12px;resize:vertical;width:100%;min-height:70px}
+textarea:focus{outline:none;border-color:var(--border2)}
+.gen-btn{background:var(--accent);color:white;border:none;border-radius:var(--radius);padding:13px 20px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;width:100%;transition:background .15s}
+.gen-btn:hover:not(:disabled){background:var(--accent2)}
+.gen-btn:disabled{opacity:.5;cursor:not-allowed}
+.content{padding:32px;overflow-y:auto;max-height:calc(100vh - 77px)}
+.empty-state{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--text3)}
+.empty-icon{font-size:48px;opacity:.3}
+.empty-title{font-family:'Playfair Display',serif;font-size:20px;color:var(--text2)}
+.empty-sub{font-size:13px;text-align:center;max-width:320px;line-height:1.6}
+.recipe-output{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.recipe-title{font-family:'Playfair Display',serif;font-size:28px;line-height:1.2;color:var(--text)}
+.recipe-subtitle{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.1em;margin-top:4px}
+.recipe-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.rbadge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;font-family:'IBM Plex Mono',monospace}
+.recipe-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.recipe-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:16px}
+.rc-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;padding-bottom:8px;border-bottom:0.5px solid var(--border)}
+.ing-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.ing-row:last-child{border-bottom:none}
+.ing-qty{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gold);margin-left:8px;white-space:nowrap}
+.ing-unit{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);margin-left:4px}
+.sub-badge{font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(200,75,47,.15);color:var(--accent);margin-left:6px;font-family:'IBM Plex Mono',monospace}
+.step{display:flex;gap:14px;padding:12px 0;border-bottom:0.5px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-num{width:26px;height:26px;border-radius:50%;border:0.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);flex-shrink:0;margin-top:2px}
+.step-title{font-weight:500;font-size:13px;margin-bottom:3px}
+.step-text{font-size:12px;color:var(--text2);line-height:1.6}
+.fc-row{display:grid;grid-template-columns:1fr 60px 70px 70px;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px;align-items:center}
+.fc-row.header{color:var(--text3);font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.08em}
+.fc-row.total{border-top:0.5px solid var(--border2);border-bottom:none;margin-top:4px;font-weight:500;color:var(--gold)}
+.fc-num{text-align:right;font-family:'IBM Plex Mono',monospace}
+.related-grid{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.related-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;cursor:pointer;transition:border-color .15s;flex:1;min-width:160px}
+.related-card:hover{border-color:var(--border2)}
+.rc-name{font-size:13px;margin-bottom:3px}
+.rc-type{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3)}
+.loading-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;height:300px}
+.loading-ring{width:40px;height:40px;border:1.5px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:.1em}
+.loading-step{color:var(--text2);font-size:13px;margin-top:4px;text-align:center}
+.output-tabs{display:flex;gap:0;border-bottom:0.5px solid var(--border);margin-bottom:20px}
+.otab{padding:8px 18px;font-size:12px;cursor:pointer;border:none;background:none;color:var(--text3);font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;border-bottom:2px solid transparent;margin-bottom:-0.5px;transition:color .15s}
+.otab.active{color:var(--text);border-bottom-color:var(--accent)}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo-mark">M</div>
+  <div>
+    <div class="logo-text">Recipe Generator</div>
+    <div class="logo-sub">powered by Claude · mexgroceria ecosystem</div>
+  </div>
+  <div class="version-tag">v1.0 · 902 рецепти</div>
+</header>
+<div class="main">
+  <div class="sidebar">
+    <div>
+      <div class="section-label">Вид кухня</div>
+      <div class="pill-group" id="cuisine-pills">
+        <button class="pill active" onclick="togglePill(this,'cuisine')">Мексиканска</button>
+        <button class="pill" onclick="togglePill(this,'cuisine')">Балканска</button>
+        <button class="pill" onclick="togglePill(this,'cuisine')">Средиземноморска</button>
+        <button class="pill" onclick="togglePill(this,'cuisine')">Фюжън</button>
+        <button class="pill" onclick="togglePill(this,'cuisine')">Азиатска</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Вид ястие</div>
+      <div class="pill-group" id="type-pills">
+        <button class="pill" onclick="togglePill(this,'type')">Тако</button>
+        <button class="pill" onclick="togglePill(this,'type')">Бурито</button>
+        <button class="pill" onclick="togglePill(this,'type')">Кесадия</button>
+        <button class="pill" onclick="togglePill(this,'type')">Супа</button>
+        <button class="pill" onclick="togglePill(this,'type')">Салата</button>
+        <button class="pill" onclick="togglePill(this,'type')">Сос / Адобо</button>
+        <button class="pill" onclick="togglePill(this,'type')">Суб-рецепта</button>
+        <button class="pill" onclick="togglePill(this,'type')">Десерт</button>
+        <button class="pill" onclick="togglePill(this,'type')">Напитка</button>
+        <button class="pill" onclick="togglePill(this,'type')">Изненадай ме</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Конкретни артикули / съставки</div>
+      <div class="tag-input-wrap" id="tag-wrap" onclick="document.getElementById('tag-in').focus()">
+        <div id="tags-container"></div>
+        <input type="text" id="tag-in" class="tag-input" placeholder="Добави съставка..." onkeydown="handleTagInput(event)">
+      </div>
+      <div class="pill-group" style="margin-top:8px">
+        <button class="pill gold" onclick="addTag('Анчо чили')">Анчо чили</button>
+        <button class="pill gold" onclick="addTag('Гуахийо')">Гуахийо</button>
+        <button class="pill gold" onclick="addTag('Ачиоте')">Ачиоте</button>
+        <button class="pill gold" onclick="addTag('Нопал')">Нопал</button>
+        <button class="pill gold" onclick="addTag('Chipotle')">Chipotle</button>
+        <button class="pill gold" onclick="addTag('Свинско')">Свинско</button>
+        <button class="pill gold" onclick="addTag('Пиле')">Пиле</button>
+        <button class="pill gold" onclick="addTag('Телешко')">Телешко</button>
+        <button class="pill gold" onclick="addTag('Хабанеро')">Хабанеро</button>
+        <button class="pill gold" onclick="addTag('Маса Харина')">Маса Харина</button>
+        <button class="pill gold" onclick="addTag('Томатийос')">Томатийос</button>
+        <button class="pill gold" onclick="addTag('Авокадо')">Авокадо</button>
+      </div>
+    </div>
+    <div>
+      <div class="section-label">Допълнителни указания</div>
+      <textarea id="extra-notes" placeholder="Веган, без глутен, за rCurry pop-up, бързо за сервиз, 20 порции..."></textarea>
+    </div>
+    <div>
+      <div class="section-label">Порции</div>
+      <div class="pill-group" id="portions-pills">
+        <button class="pill" onclick="togglePill(this,'portions')">1</button>
+        <button class="pill active" onclick="togglePill(this,'portions')">4</button>
+        <button class="pill" onclick="togglePill(this,'portions')">10</button>
+        <button class="pill" onclick="togglePill(this,'portions')">20</button>
+        <button class="pill" onclick="togglePill(this,'portions')">50</button>
+      </div>
+    </div>
+    <button class="gen-btn" id="gen-btn" onclick="generateRecipe()">✦ ГЕНЕРИРАЙ РЕЦЕПТА</button>
+  </div>
+  <div class="content" id="content">
+    <div class="empty-state">
+      <div class="empty-icon">🌶</div>
+      <div class="empty-title">Готов за генериране</div>
+      <div class="empty-sub">Избери кухня, вид ястие и съставки — ще генерирам рецепта в стила на Манджа/rCurry с пълни грамажи, food cost и стъпки за приготвяне.</div>
+    </div>
+  </div>
+</div>
+<script>
+const RECIPE_CONTEXT=`СУБРОЕЦЕПТИ:
+Агнешко Барбакоа: Агнешко 2кг, Портокал 0.5кг, Анчо чили 0.03кг, Чесън 0.03кг, Канела 0.01кг
+Адобо сос: Анчо паста 0.12кг, Гуахийо паста 0.12кг, Чесън 0.063кг, Оцет 0.2кг, Кимион 0.004кг, Канела 0.004кг, Риган 0.006кг
+Ал пастор свинско: Свинска плешка 1.6кг, Ал Пастор марината 0.12кг
+Гуакамоле: Авокадо 0.85кг, Кориандър 0.025кг, Червена чушка 0.1кг, Чесън 0.009кг, Лайм 0.05кг
+Латински Ориз: Ориз 0.5кг, Вода 1кг, Домати 0.1кг, Лук 0.05кг, Кимион 0.005кг
+Мачкан боб: Бял боб 0.29кг, Вода 0.94кг, Лук 0.07кг, Кимион 0.003кг
+Салса Верде: Томатийос 0.34кг, Лук 0.15кг, Кориандър 0.02кг, Чесън 0.01кг
+Хугосо пиле: Пиле бут 1.4кг, Лук 0.25кг, Кетчуп 0.15кг, Оцет 0.19кг, Захар 0.025кг
+Поло Ачиоте: Пиле бут 1.5кг, Ачиоте паста 0.08кг, Портокал 0.3кг, Чесън 0.02кг
+
+ЯСТИЯ:
+Тако де пойо (3.5лв/порция): тортия 30г, хугосо пиле 35г, банана пепър 10г, салса верде 15г
+Бурито де пойо (13.5лв): тортия 30см, пиле 70г, боб 60г, ориз 60г, крем фреш 40г
+Бурито де пуерко (10.99лв): свинско 100г, тортия 30см, боб 100г, крем фреш 40г
+Тако Барбакоа (5.5лв): тортия 30г, барбакоа 50г, лук 10г, кориандър 5г
+
+ГРАМАЖИ ЗА ПОРЦИЯ:
+Тако: тортия 30-40г, месо 35-50г, сос 15-20г, гарниш 10г
+Бурито: тортия 1бр, месо 70-100г, боб 60-80г, ориз 60г, крем фреш 30-40г
+Кесадия: тортия 1бр, сирене 60г, пълнеж 80-100г
+Супа: бульон 220-250г, месо 50-70г, зеленчуци 80-100г`;
+
+const SELECTIONS={cuisine:'Мексиканска',type:null,portions:'4'};
+const tags=[];
+
+function togglePill(el,group){
+  document.querySelectorAll(`#${group}-pills .pill`).forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  SELECTIONS[group]=el.textContent.trim();
+}
+
+function addTag(text){
+  if(tags.includes(text))return;
+  tags.push(text);renderTags();
+}
+
+function removeTag(text){
+  const i=tags.indexOf(text);
+  if(i>-1){tags.splice(i,1);renderTags();}
+}
+
+function renderTags(){
+  document.getElementById('tags-container').innerHTML=tags.map(t=>
+    `<span class="tag">${t}<span class="rm" onclick="removeTag('${t}')">×</span></span>`
+  ).join('');
+}
+
+function handleTagInput(e){
+  const input=document.getElementById('tag-in');
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    const val=input.value.trim().replace(/,$/,'');
+    if(val){addTag(val);input.value='';}
+  }else if(e.key==='Backspace'&&!input.value&&tags.length){
+    removeTag(tags[tags.length-1]);
+  }
+}
+
+async function generateRecipe(){
+  const btn=document.getElementById('gen-btn');
+  const content=document.getElementById('content');
+  const cuisine=SELECTIONS.cuisine||'Мексиканска';
+  const type=SELECTIONS.type||'ястие';
+  const portions=SELECTIONS.portions||'4';
+  const ingredients=tags.join(', ');
+  const notes=document.getElementById('extra-notes').value.trim();
+
+  const prompt=`Ти си опитен готвач от мексикански ресторант. База данни с 902 рецепти.
+
+КОНТЕКСТ:
+${RECIPE_CONTEXT}
+
+ЗАЯВКА:
+Кухня: ${cuisine}, Вид: ${type}, Съставки: ${ingredients||'по избор'}, Порции: ${portions}, Бележки: ${notes||'няма'}
+
+Генерирай рецепта в JSON формат (САМО JSON, без markdown):
+{"name":"...","name_en":"...","type":"...","cuisine":"${cuisine}","portions":${portions},"description":"...","badges":["..."],"ingredients":[{"name":"...","qty_per_portion":0.035,"unit":"кг","is_sub_recipe":false,"price_per_kg":8.5}],"sub_recipes":[{"name":"...","ingredients":[{"name":"...","qty":0.1,"unit":"кг"}]}],"steps":[{"num":1,"title":"...","text":"..."}],"food_cost":{"notes":"..."},"related_dishes":[{"name":"...","type":"...","reason":"..."}],"chef_notes":"..."}`;
+
+  btn.disabled=true;
+  content.innerHTML=`<div class="loading-wrap"><div class="loading-ring"></div><div><div class="loading-text">ГЕНЕРИРАМ РЕЦЕПТА</div><div class="loading-step" id="lstep">Анализирам 902 рецепти...</div></div></div>`;
+  
+  const steps=['Анализирам 902 рецепти...','Изчислявам грамажи...','Генерирам стъпки...','Изчислявам food cost...','Финализирам...'];
+  let si=0;
+  const iv=setInterval(()=>{si=(si+1)%steps.length;const el=document.getElementById('lstep');if(el)el.textContent=steps[si];},1200);
+
+  try{
+    const resp=await fetch('/api/generate',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt})
+    });
+    clearInterval(iv);
+    if(!resp.ok)throw new Error(`Грешка: ${resp.status}`);
+    const data=await resp.json();
+    let recipe;
+    try{
+      const clean=data.text.replace(/```json\n?|\n?```/g,'').trim();
+      recipe=JSON.parse(clean);
+    }catch(e){throw new Error('Грешка при парсване. Опитай отново.');}
+    renderRecipe(recipe,portions);
+  }catch(err){
+    clearInterval(iv);
+    content.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-title">Грешка</div><div class="empty-sub">${err.message}</div></div>`;
+  }finally{btn.disabled=false;}
+}
+
+function renderRecipe(r,portions){
+  const content=document.getElementById('content');
+  let totalCost=0;
+  const costRows=(r.ingredients||[]).map(ing=>{
+    const cost=(ing.qty_per_portion||0)*(ing.price_per_kg||0)*parseInt(portions);
+    totalCost+=cost;
+    return{...ing,total_cost:cost};
+  });
+  const badgeColors={'Мексиканска':'#C84B2F','Балканска':'#185FA5','Веган':'#4A8C6A','Веджи':'#4A8C6A','Лятна':'#D4A853','Зимна':'#534AB7','Пикантна':'#C84B2F','Фюжън':'#993556'};
+  
+  content.innerHTML=`<div class="recipe-output">
+    <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:24px;gap:16px">
+      <div>
+        <div class="recipe-title">${r.name}</div>
+        <div class="recipe-subtitle">${r.name_en||''} · ${r.cuisine} · ${portions} порции</div>
+        <div class="recipe-badges">${(r.badges||[]).map(b=>`<span class="rbadge" style="background:${(badgeColors[b]||'#3D3A34')}22;color:${badgeColors[b]||'#9A9488'};border:0.5px solid ${(badgeColors[b]||'#3D3A34')}44">${b}</span>`).join('')}</div>
+      </div>
+      <button onclick="generateRecipe()" style="background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--radius);padding:8px 14px;color:var(--text2);cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:nowrap">↺ Регенерирай</button>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.6">${r.description||''}</p>
+    <div class="output-tabs">
+      <button class="otab active" onclick="showTab('ingredients',this)">СЪСТАВКИ</button>
+      <button class="otab" onclick="showTab('steps',this)">СТЪПКИ</button>
+      <button class="otab" onclick="showTab('foodcost',this)">FOOD COST</button>
+      <button class="otab" onclick="showTab('related',this)">СВЪРЗАНИ</button>
+    </div>
+    <div id="tab-ingredients">
+      <div class="recipe-grid">
+        <div class="recipe-card">
+          <div class="rc-title">Съставки · 1 порция</div>
+          ${(r.ingredients||[]).map(ing=>`<div class="ing-row"><span>${ing.name}${ing.is_sub_recipe?'<span class="sub-badge">суб</span>':''}</span><span class="ing-qty">${ing.qty_per_portion}</span><span class="ing-unit">${ing.unit||'кг'}</span></div>`).join('')}
+        </div>
+        <div class="recipe-card">
+          <div class="rc-title">Съставки · ${portions} порции</div>
+          ${(r.ingredients||[]).map(ing=>`<div class="ing-row"><span>${ing.name}</span><span class="ing-qty">${(ing.qty_per_portion*parseInt(portions)).toFixed(3)}</span><span class="ing-unit">${ing.unit||'кг'}</span></div>`).join('')}
+        </div>
+        ${r.sub_recipes&&r.sub_recipes.length?`<div class="recipe-card" style="grid-column:span 2"><div class="rc-title">Суб-рецепти (Prep)</div>${r.sub_recipes.map(sr=>`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:500;color:var(--accent);margin-bottom:6px">${sr.name}</div>${(sr.ingredients||[]).map(i=>`<div class="ing-row"><span>${i.name}</span><span class="ing-qty">${i.qty}</span><span class="ing-unit">${i.unit||'кг'}</span></div>`).join('')}</div>`).join('')}</div>`:''}
+      </div>
+      ${r.chef_notes?`<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius);padding:14px;font-size:12px;color:var(--text2)"><span style="color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:6px">CHEF NOTES</span>${r.chef_notes}</div>`:''}
+    </div>
+    <div id="tab-steps" style="display:none">
+      <div class="recipe-card">
+        <div class="rc-title">Стъпки за приготвяне</div>
+        ${(r.steps||[]).map(s=>`<div class="step"><div class="step-num">${s.num}</div><div><div class="step-title">${s.title}</div><div class="step-text">${s.text}</div></div></div>`).join('')}
+      </div>
+    </div>
+    <div id="tab-foodcost" style="display:none">
+      <div class="recipe-card">
+        <div class="rc-title">Food Cost · ${portions} порции</div>
+        <div class="fc-row header"><span>Съставка</span><span class="fc-num">КГ</span><span class="fc-num">€/кг</span><span class="fc-num">Общо €</span></div>
+        ${costRows.map(row=>`<div class="fc-row"><span>${row.name}</span><span class="fc-num">${(row.qty_per_portion*parseInt(portions)).toFixed(3)}</span><span class="fc-num">${(row.price_per_kg||0).toFixed(2)}</span><span class="fc-num">${row.total_cost.toFixed(2)}</span></div>`).join('')}
+        <div class="fc-row total"><span>ОБЩО</span><span></span><span></span><span class="fc-num">€${totalCost.toFixed(2)}</span></div>
+        <div class="fc-row" style="border-top:none;margin-top:8px"><span style="color:var(--text2)">На порция</span><span></span><span></span><span class="fc-num">€${(totalCost/parseInt(portions)).toFixed(2)}</span></div>
+        <div class="fc-row" style="border-top:none"><span style="color:var(--text2)">Препоръчителна цена (30% FC)</span><span></span><span></span><span class="fc-num" style="color:var(--gold)">€${((totalCost/parseInt(portions))/0.30).toFixed(2)}</span></div>
+        <div style="margin-top:12px;padding:10px;background:var(--bg3);border-radius:var(--radius);font-size:11px;color:var(--text3)">${r.food_cost?.notes||'Цените са ориентировъчни.'}</div>
+      </div>
+    </div>
+    <div id="tab-related" style="display:none">
+      <div class="recipe-card">
+        <div class="rc-title">Свързани ястия</div>
+        <div class="related-grid">
+          ${(r.related_dishes||[]).map(rd=>`<div class="related-card" onclick="generateRelated('${rd.name}','${rd.type}')"><div class="rc-name">${rd.name}</div><div class="rc-type">${rd.type} · ${rd.reason}</div></div>`).join('')}
+        </div>
+        ${!r.related_dishes?.length?'<div style="color:var(--text3);font-size:12px">Няма свързани ястия.</div>':''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function showTab(id,el){
+  ['ingredients','steps','foodcost','related'].forEach(t=>{
+    const e=document.getElementById(`tab-${t}`);if(e)e.style.display='none';
+  });
+  document.querySelectorAll('.otab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(`tab-${id}`).style.display='block';
+  el.classList.add('active');
+}
+
+function generateRelated(name,type){
+  document.getElementById('extra-notes').value=`Генерирай рецепта за: ${name}`;
+  generateRecipe();
+}
+</script>
+</body>
+</html>
