@@ -18,18 +18,18 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-opus-4-5',
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
+    const data = await response.json();
+    
     if (!response.ok) {
-      const err = await response.text();
-      return res.status(500).json({ error: err });
+      return res.status(500).json({ error: JSON.stringify(data) });
     }
 
-    const data = await response.json();
     const text = data.content?.[0]?.text || '';
     return res.status(200).json({ text });
 
