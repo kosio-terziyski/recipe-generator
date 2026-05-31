@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (!response.ok) {
-      return res.status(500).json({ error: JSON.stringify(data) });
+      return res.status(500).json({ error: JSON.stringify(data), status: response.status, model_used: 'claude-haiku-4-5-20251001' });
     }
 
     const text = data.content?.[0]?.text || '';
