@@ -11,9 +11,8 @@ export default async function handler(req, res) {
 
   const NOTION_TOKEN = process.env.NOTION_TOKEN;
   const MEX_DB_ID = '3700caa2630581179b76e4f78c9213f1';
-  const ITEMS_DB_ID = '3700caa263058169b545cd6a84de3fcd';
 
-  // 1. Вземи mexgroceria Products от Notion
+  // 1. Вземи само продуктите свързани с рецепти от Notion
   let productContext = '';
   try {
     const notionRes = await fetch(`https://api.notion.com/v1/databases/${MEX_DB_ID}/query`, {
@@ -24,78 +23,50 @@ export default async function handler(req, res) {
         'Notion-Version': '2022-06-28',
       },
       body: JSON.stringify({
-        filter: { property: 'Активен', checkbox: { equals: true } },
-        page_size: 100,
-      }),
-    });
-
-    if (notionRes.ok) {
-      const data = await notionRes.json();
-      const products = data.results.map(p => {
-        const props = p.properties;
-        const name = props['Продукт']?.title?.[0]?.text?.content || '';
-        const cat = props['Категория']?.select?.name || '';
-        const priceB2C = props['Цена B2C (€ с ДДС)']?.number || null;
-        const priceHoreca = props['Цена HoReCa (€ без ДДС)']?.number || null;
-        const recipeTags = props['Recipe tags']?.rich_text?.[0]?.text?.content || '';
-        const inStock = props['На склад']?.checkbox !== false;
-        if (!name) return null;
-        const price = priceB2C ? `B2C €${priceB2C}` : '';
-        const hor = priceHoreca ? `HoReCa €${priceHoreca}` : '';
-        const stock = inStock ? '✓' : '✗ изчерпан';
-        const tags = recipeTags ? ` [рецепти: ${recipeTags}]` : '';
-        return `${name} (${cat}) | ${price} ${hor} | ${stock}${tags}`;
-      }).filter(Boolean);
-
-      productContext = `\n\n=== MEXGROCERIA КАТАЛОГ (${products.length} продукта) ===\n${products.join('\n')}`;
-    }
-  } catch (e) {
-    productContext = '\n\n[Notion каталогът временно недостъпен — използвай ориентировъчни цени]';
-  }
-
-  // 2. Вземи суб-рецепти от Items
-  let subRecipeContext = '';
-  try {
-    const itemsRes = await fetch(`https://api.notion.com/v1/databases/${ITEMS_DB_ID}/query`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${NOTION_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28',
-      },
-      body: JSON.stringify({
         filter: {
           and: [
-            { property: 'Тип артикул', select: { equals: 'sub_recipe — prep рецепта' } },
             { property: 'Активен', checkbox: { equals: true } },
+            { property: 'Свързан с рецепти', checkbox: { equals: true } },
           ]
         },
         page_size: 50,
       }),
     });
-    if (itemsRes.ok) {
-      const data = await itemsRes.json();
-      const subs = data.results.map(p => {
-        const name = p.properties['Артикул']?.title?.[0]?.text?.content || '';
-        return name || null;
+
+    if (notionRes.ok) {
+      const data = await notionRes.json();
+      const lines = data.results.map(p => {
+        const props = p.properties;
+        const name = props['Продукт']?.title?.[0]?.text?.content || '';
+        const priceB2C = props['Цена B2C (€ с ДДС)']?.number;
+        const priceHoreca = props['Цена HoReCa (€ без ДДС)']?.number;
+        if (!name) return null;
+        const p1 = priceB2C ? `€${priceB2C}` : '';
+        const p2 = priceHoreca ? `(HoReCa €${priceHoreca})` : '';
+        return `- ${name}: ${p1} ${p2}`.trim();
       }).filter(Boolean);
-      if (subs.length > 0) {
-        subRecipeContext = `\n\n=== НАЛИЧНИ СУБ-РЕЦЕПТИ ===\n${subs.join('\n')}`;
+
+      if (lines.length > 0) {
+        productContext = `\nПРОДУКТИ ОТ MEXGROCERIA С ЦЕНИ:\n${lines.join('\n')}`;
       }
     }
   } catch (e) {}
 
-  // 3. Обогати prompt-а
-  const enrichedPrompt = prompt + productContext + subRecipeContext + `
+  // 2. Построй prompt
+  const fullPrompt = `Ти си готвач в мексикански ресторант. Генерирай рецепта.
 
-ПРАВИЛА ЗА FOOD COST:
-- Използвай цените от mexgroceria каталога за тези продукти
-- Месо пазарни цени (€/кг): телешко 9-12, свинско 6-8, пиле 5-7, агнешко 10-14
-- ФИРА: телешко 28%, свинско 22%, пиле 18% — qty_per_portion е СУРОВО тегло
-- Консервиран нопал (Lol-Tun / La Costeña / San Marcos) = пресен нопал 1:1 (отцеден)
-- Ако продукт е изчерпан — предложи алтернатива от каталога`;
+${prompt}
+${productContext}
 
-  // 4. Извикай Claude
+ПРАВИЛА:
+- Фира: телешко 28%, свинско 22%, пиле 18% — qty_per_portion е СУРОВО тегло
+- Консервиран нопал (Lol-Tun/La Costeña/San Marcos) = пресен нопал (отцеден)
+- Отговори САМО с валиден JSON обект, без markdown, без обяснения преди или след
+
+JSON формат:
+{"name":"...","name_en":"...","type":"...","cuisine":"...","portions":4,"description":"...","badges":["..."],"ingredients":[{"name":"...","qty_per_portion":0.05,"unit":"кг","is_sub_recipe":false,"price_per_kg":5.0}],"sub_recipes":[],"steps":[{"num":1,"title":"...","text":"..."}],"food_cost":{"notes":"..."},"related_dishes":[{"name":"...","type":"...","reason":"..."}],"chef_notes":"..."}`;
+
+  // 3. Claude
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -107,14 +78,32 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2000,
-        messages: [{ role: 'user', content: enrichedPrompt }],
+        messages: [{ role: 'user', content: fullPrompt }],
       }),
     });
 
     const data = await response.json();
     if (!response.ok) return res.status(500).json({ error: JSON.stringify(data) });
-    const text = data.content?.[0]?.text || '';
-    return res.status(200).json({ text, notionConnected: productContext.includes('каталог') });
+
+    let text = data.content?.[0]?.text || '';
+    
+    // Почисти markdown ако има
+    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    // Провери дали е валиден JSON
+    try {
+      JSON.parse(text);
+    } catch(e) {
+      // Опитай да извлечеш JSON от текста
+      const match = text.match(/\{[\s\S]*\}/);
+      if (match) {
+        text = match[0];
+      } else {
+        return res.status(500).json({ error: 'Invalid JSON from Claude', raw: text.substring(0, 200) });
+      }
+    }
+
+    return res.status(200).json({ text });
 
   } catch (err) {
     return res.status(500).json({ error: err.message });
